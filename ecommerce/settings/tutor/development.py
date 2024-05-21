@@ -3,23 +3,24 @@ from ..devstack import *
 import json
 import os
 
-SECRET_KEY = "Ai8OzavSEhVFp1BHaZNG"
+SECRET_KEY = "wLwNaQASDJVTl0oZ91zc"
 ALLOWED_HOSTS = [
     "ecommerce.local.edly.io",
     "ecommerce",
+    "localhost"
 ]
-PLATFORM_NAME = "my openedx"
+PLATFORM_NAME = "My Open edX"
 PROTOCOL = "http"
 
 CORS_ALLOW_CREDENTIALS = True
 
 OSCAR_DEFAULT_CURRENCY = "USD"
 
-EDX_API_KEY = "VQdvs9R4gr68CTVQuFyQ"
+EDX_API_KEY = "Yh8PVlWXxc9CDdIbVRip"
 
 JWT_AUTH["JWT_ISSUER"] = "http://local.edly.io/oauth2"
 JWT_AUTH["JWT_AUDIENCE"] = "openedx"
-JWT_AUTH["JWT_SECRET_KEY"] = "GjfJ8bSEGNWFLtXHF0Nd7Ezm"
+JWT_AUTH["JWT_SECRET_KEY"] = "pEZUAIQHO7KJjaly1PQ0Item"
 JWT_AUTH["JWT_PUBLIC_SIGNING_JWK_SET"] = json.dumps(
     {
         "keys": [
@@ -27,7 +28,7 @@ JWT_AUTH["JWT_PUBLIC_SIGNING_JWK_SET"] = json.dumps(
                 "kid": "openedx",
                 "kty": "RSA",
                 "e": "AQAB",
-                "n": "o4jum602akkN3ijjYz5L-Olt09SwU74AAHArntbI3ywzoK4oTRgcKmCt6iNusaCKw7PW-R5GX73UgQq1hZNoeuluV69SVeO6Y1GUrH4KYTqSuVsS1Y1WsLFvpGOwTbJSqE1q1R2J_Hhxf-8DX-UiP3x71ybx8jNXwI7kFc5Sa5V1XPQmqI0Vq6IrSvFYAkdRXB3YDmnvGM_RwgOjojNlNr-n81adma5UCEpfsaoubkfZw-wtXbM92wl1rmKeJb2Ax1W5v_7riwWr_ozOG8at3y9-BBHvVPl6Nb1vYppTo0V0JtQjEYe2H7Q577uYfsRpo0iRiaW05QlRMf06R8MI6w",
+                "n": "tViKzMAFq1aY7TkDYvZlBE9A52MuI-8MDmlH4WQqRheL0ZDb2eqQtu3okyKelcS9Urk3A4xmoSS25J240p_58RZ64uqVhYmjzmMddVNBFZOK1zWEAXPy41OgAhkdekhyfpCKnxCal7nl546xOfILJWnO_XZ3dLBkMX5TbJ9gKKoNBkPxLJIAfSbt_pjTiwMBtft162DqNlj08XDkGXjsKXofQeag0Zxn76aXTmqBBbWgEvm8zyn0SpQWnOD8w2GYjhKYqm_D37isXI4wiLmxFe5nKInwOvdljI0kjpVuHDcUmyKJ-e23cPAOsEiWPhGBNSPFqarEhbG0ZldyHA-NrQ",
             }
         ]
     }
@@ -36,7 +37,7 @@ JWT_AUTH["JWT_ISSUERS"] = [
     {
         "ISSUER": "http://local.edly.io/oauth2",
         "AUDIENCE": "openedx",
-        "SECRET_KEY": "GjfJ8bSEGNWFLtXHF0Nd7Ezm"
+        "SECRET_KEY": "pEZUAIQHO7KJjaly1PQ0Item"
     }
 ]
 
@@ -44,7 +45,7 @@ SOCIAL_AUTH_REDIRECT_IS_HTTPS = False
 SOCIAL_AUTH_EDX_OAUTH2_ISSUER = "http://local.edly.io"
 SOCIAL_AUTH_EDX_OAUTH2_URL_ROOT = "http://lms:8000"
 
-BACKEND_SERVICE_EDX_OAUTH2_SECRET = "SXhYIdah"
+BACKEND_SERVICE_EDX_OAUTH2_SECRET = "V3OE4jg8"
 BACKEND_SERVICE_EDX_OAUTH2_PROVIDER_URL = "http://lms:8000/oauth2"
 
 EDX_DRF_EXTENSIONS = {
