@@ -640,6 +640,7 @@ zope-interface==6.0
     # via
     #   cybersource-rest-client-python
     #   datetime
+wechatpayv3==1.2.52
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip
