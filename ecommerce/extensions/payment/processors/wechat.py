@@ -107,7 +107,10 @@ class WechatPay(BasePaymentProcessor):
         desc_list = [self.get_courseid_title(line) for line in basket.all_lines()]
         desc = ",".join(d for d in desc_list)
         desc = middle_truncate(desc, PAY_FREE_FORM_FIELD_MAX_SIZE)
-        total = int(basket.total_incl_tax * 7 * 100) # 商品原单位是美元
+        usd_rmb_exchage_rate = request.site.siteconfiguration.usd_rmb_exchage_rate
+        price = basket.total_incl_tax
+        total = int(price * usd_rmb_exchage_rate * 1000 * 100)/1000 # 商品原单位是美元
+        logger.info('WechatPay price: %s, usd_rmb_exchage_rate: %s, total: %s', price, usd_rmb_exchage_rate, total)
 
         message = None
         for i in range(1, available_attempts + 1):

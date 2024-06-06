@@ -202,6 +202,14 @@ class SiteConfiguration(models.Model):
         blank=True
     )
 
+    usd_rmb_exchage_rate = models.FloatField(
+        verbose_name=_('USD to RMB exchange rate'),
+        help_text=_('Exchange rate for USD to RMB'),
+        null=True,
+        blank=True,
+        default=7.3
+    )
+
     @property
     def payment_processors_set(self):
         """
