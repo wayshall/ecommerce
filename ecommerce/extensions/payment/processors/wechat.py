@@ -1,6 +1,5 @@
 """ PayPal payment processing. """
-
-
+import json
 import logging
 import re
 import uuid
@@ -83,6 +82,29 @@ class WechatPay(BasePaymentProcessor):
         )
         return wx_pay
 
+    def get_payment_by_transaction_id(self, transaction_id):
+        wxpay = self.wechatpay_api
+        code, message = wxpay.query(transaction_id=transaction_id)
+        if code != 200:
+            return False
+        payment = json.loads(message)
+        return payment
+
+    def get_payment(self, basket):
+        order_number = basket.order_number
+        wxpay = self.wechatpay_api
+        code, message = wxpay.query(out_trade_no=order_number)
+        if code != 200:
+            return False
+        payment = json.loads(message)
+        return payment
+
+    def get_trade_state(self, basket):
+        payment = self.get_payment(basket)
+        trade_state = payment["trade_state"]
+        # return trade_state == "SUCCESS"
+        return trade_state
+
     def get_transaction_parameters(self, basket, request=None, use_client_side_checkout=False, **kwargs):
         """
         Create a new wechat payment.
@@ -108,8 +130,9 @@ class WechatPay(BasePaymentProcessor):
         desc = ",".join(d for d in desc_list)
         desc = middle_truncate(desc, PAY_FREE_FORM_FIELD_MAX_SIZE)
         usd_rmb_exchage_rate = request.site.siteconfiguration.usd_rmb_exchage_rate
-        price = basket.total_incl_tax
-        total = int(price * usd_rmb_exchage_rate * 1000 * 100)/1000 # 商品原单位是美元
+        usd_rmb_exchage_rate = int(usd_rmb_exchage_rate * 10000) # 汇率一般4位小数
+        price = int(basket.total_incl_tax * 100) # 美元保留两位小数
+        total = int(price * usd_rmb_exchage_rate * 100 / 10000 / 100) # 商品原单位是美元，微信支付单位是人民币：分
         logger.info('WechatPay price: %s, usd_rmb_exchage_rate: %s, total: %s', price, usd_rmb_exchage_rate, total)
 
         message = None
@@ -164,12 +187,16 @@ class WechatPay(BasePaymentProcessor):
                     )
                     raise
 
-
-        entry = self.record_processor_response(message, transaction_id=order_number, basket=basket)
+        message = json.loads(message)
+        # 成功创建后立即查询
+        payment = self.get_payment(basket)
+        # entry = self.record_processor_response(payment, transaction_id=payment.transaction_id, basket=basket)
+        entry = self.record_processor_response(payment, transaction_id=payment['out_trade_no'], basket=basket)
         logger.info("Successfully created WechatPay payment [%s] for basket [%d].", order_number, basket.id)
 
         parameters = {
             'payment_page_url': message['code_url'],
+            'out_trade_no': payment['out_trade_no']
         }
 
         return parameters
@@ -222,11 +249,25 @@ class WechatPay(BasePaymentProcessor):
 
     def handle_processor_response(self, response, basket=None):
         logger.info('wechat resposne: %s', response)
-        return None
-        # return HandledProcessorResponse(
-        #     transaction_id=transaction_id,
-        #     total=total,
-        #     currency=currency,
-        #     card_number=label,
-        #     card_type=None
-        # )
+        logger.info('wechat basket: %s', basket)
+        payment = self.get_payment(basket)
+        transaction_id = payment['transaction_id'] if 'transaction_id' in payment else payment['out_trade_no']
+        # self.record_processor_response(payment.to_dict(), transaction_id=payment.id, basket=basket)
+        self.record_processor_response(payment, transaction_id=transaction_id, basket=basket)
+        logger.info("Successfully executed PayPal payment [%s] for basket [%d].", transaction_id, basket.id)
+
+        currency = payment['amount']['currency']
+        total = Decimal(payment['amount']['total'])
+
+        label = 'WechatPay Account'
+        if 'payer' in payment and 'openid' in payment['payer']:
+            openid = payment['payer']['openid']
+            label = 'WechatPay Account ({})'.format(openid)
+
+        return HandledProcessorResponse(
+            transaction_id=transaction_id,
+            total=total,
+            currency=currency,
+            card_number=label,
+            card_type=None
+        )
