@@ -86,18 +86,21 @@ class WechatPay(BasePaymentProcessor):
         wxpay = self.wechatpay_api
         code, message = wxpay.query(transaction_id=transaction_id)
         if code != 200:
-            return False
+            return None
+        payment = json.loads(message)
+        return payment
+
+    def get_payment_by_out_trade_no(self, out_trade_no):
+        wxpay = self.wechatpay_api
+        code, message = wxpay.query(out_trade_no=out_trade_no)
+        if code != 200:
+            return None
         payment = json.loads(message)
         return payment
 
     def get_payment(self, basket):
         order_number = basket.order_number
-        wxpay = self.wechatpay_api
-        code, message = wxpay.query(out_trade_no=order_number)
-        if code != 200:
-            return False
-        payment = json.loads(message)
-        return payment
+        return self.get_payment_by_out_trade_no(order_number)
 
     def get_trade_state(self, basket):
         payment = self.get_payment(basket)

@@ -36,29 +36,37 @@ class WechatPaymentQueryView(EdxOrderPlacementMixin, APIView):
         responses = request.GET
         basket_id = request.GET.get('basket_id')
         out_trade_no = request.GET.get('out_trade_no')
-        paymentRes, basket = self._get_basket(out_trade_no)
+        payment = self.payment_processor.get_payment_by_out_trade_no(out_trade_no)
 
-        payment = self.payment_processor.get_payment(basket)
         trade_state = payment["trade_state"]
         receipt_url = ''
+        has_paid = False
 
         if trade_state == 'SUCCESS':
+            transaction_id = payment["transaction_id"]
+            paymentRes, basket = self._get_basket(None, transaction_id)
+            if basket is None:
+                paymentRes, basket = self._get_basket(out_trade_no, None)
+            else:
+                has_paid = True
             receipt_url = get_receipt_page_url(
                 self.request,
                 order_number=basket.order_number,
                 site_configuration=basket.site.siteconfiguration,
                 disable_back_button=True
             )
+
+            if has_paid:
+                return {
+                    'trade_state': trade_state,
+                    'redirect_url': receipt_url
+                }
             try:
                 with transaction.atomic():
-                    if 'transaction_id' in payment:
-                        # paymentRes.update({'transaction_id': payment['transaction_id']})
-                        paymentRes.transaction_id = payment['transaction_id']
-                        paymentRes.save()
                     self.handle_payment(responses, basket)
             except:  # pylint: disable=bare-except
                 logger.exception('Attempts to handle payment for basket [%d] failed.', basket.id)
-                trade_state = 'ERROR'
+                # trade_state = 'ERROR'
 
             order = None
             try:
@@ -79,7 +87,7 @@ class WechatPaymentQueryView(EdxOrderPlacementMixin, APIView):
         }
         return JsonResponse(res)
 
-    def _get_basket(self, out_trade_no):
+    def _get_basket(self, out_trade_no, transaction_id):
         """
         Retrieve a basket using a payment ID.
 
@@ -92,10 +100,18 @@ class WechatPaymentQueryView(EdxOrderPlacementMixin, APIView):
 
         """
         try:
-            paymentRes = PaymentProcessorResponse.objects.get(
-                processor_name=self.payment_processor.NAME,
-                transaction_id=out_trade_no
-            )
+            if transaction_id is not None:
+                paymentRes = PaymentProcessorResponse.objects.get(
+                    processor_name=self.payment_processor.NAME,
+                    transaction_id=transaction_id
+                )
+            elif out_trade_no is not None:
+                paymentRes = PaymentProcessorResponse.objects.get(
+                    processor_name=self.payment_processor.NAME,
+                    transaction_id=out_trade_no
+                )
+            else:
+                return None, None
             basket = paymentRes.basket
             basket.strategy = strategy.Default()
 
@@ -104,8 +120,8 @@ class WechatPaymentQueryView(EdxOrderPlacementMixin, APIView):
             basket_add_organization_attribute(basket, self.request.GET)
             return paymentRes, basket
         except MultipleObjectsReturned:
-            logger.warning(u"Duplicate payment ID [%s] received from PayPal.", payment_id)
-            return None
-        except Exception:  # pylint: disable=broad-except
-            logger.exception(u"Unexpected error during basket retrieval while executing PayPal payment.")
-            return None
+            logger.warning(u"Duplicate payment ID [%s] received from PayPal.", transaction_id)
+            return None, None
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(u"Unexpected error during basket retrieval while executing PayPal payment. %s", e)
+            return None, None
