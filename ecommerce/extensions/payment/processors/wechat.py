@@ -78,7 +78,7 @@ class WechatPay(BasePaymentProcessor):
             cert_dir=cert_dir,
             logger=logger,
             partner_mode=False, # 接入模式:False=直连商户模式，True=服务商模式
-            timeout=(10, 30)
+            timeout=(30, 60)
         )
         return wx_pay
 
@@ -138,6 +138,10 @@ class WechatPay(BasePaymentProcessor):
         total = int(price * usd_rmb_exchage_rate * 100 / 10000 / 100) # 商品原单位是美元，微信支付单位是人民币：分
         logger.info('WechatPay price: %s, usd_rmb_exchage_rate: %s, total: %s', price, usd_rmb_exchage_rate, total)
 
+        site_configuration = basket.site.siteconfiguration
+        notify_url = site_configuration.build_ecommerce_url('/payment/wechatpay/query')
+        notify_url = 'http://gptdev.nps.wayfish.cn/payment/wechatpay/query/'
+
         message = None
         for i in range(1, available_attempts + 1):
             try:
@@ -146,7 +150,8 @@ class WechatPay(BasePaymentProcessor):
                     out_trade_no=order_number,
                     amount={'total': total},
                     description=desc,
-                    pay_type=WeChatPayType.NATIVE
+                    pay_type=WeChatPayType.NATIVE,
+                    notify_url=notify_url
                 )
                 logger.info("Wechat payment result, code: %s, message: %s", code, message)
                 if code == 200:

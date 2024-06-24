@@ -1,10 +1,9 @@
 
 import logging
-import os
-from io import StringIO
+from django.conf import settings
 
 from django.core.exceptions import MultipleObjectsReturned
-from django.core.management import call_command
+from django.http import HttpResponseServerError
 from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from rest_framework.views import APIView
@@ -12,7 +11,6 @@ from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
 from django.views.generic import View
 from oscar.apps.partner import strategy
-from oscar.apps.payment.exceptions import PaymentError
 from oscar.core.loading import get_class, get_model
 
 from ecommerce.extensions.basket.utils import basket_add_organization_attribute
@@ -32,6 +30,32 @@ class WechatPaymentQueryView(EdxOrderPlacementMixin, APIView):
     @property
     def payment_processor(self):
         return WechatPay(self.request.site)
+
+    def post(self, request):
+        data = request.body
+        logger.info("wechatpay callback header: %s", request.headers)
+        logger.info("wechatpay callback data: %s", data)
+        result = self.payment_processor.wechatpay_api.callback(request.headers, data)
+        if result and result.get('event_type') == 'TRANSACTION.SUCCESS':
+            resp = result.get('resource')
+            transaction_id = resp.get('transaction_id')
+            trade_state = resp.get('trade_state')
+            out_trade_no = resp.get('out_trade_no')
+            self.handle_pay_success(request, data, transaction_id, out_trade_no, trade_state)
+            res = {
+                'code': 'SUCCESS',
+                'message': '成功'
+            }
+            return JsonResponse(res)
+        else:
+            res = {
+                'code': 'FAILED',
+                'message': '失败'
+            }
+            response = HttpResponseServerError(JsonResponse(res))
+            response['Content-Type'] = 'application/json'
+            return response
+
     def get(self, request):
         responses = request.GET
         basket_id = request.GET.get('basket_id')
@@ -40,13 +64,36 @@ class WechatPaymentQueryView(EdxOrderPlacementMixin, APIView):
 
         trade_state = payment["trade_state"]
         receipt_url = ''
-        has_paid = False
+        res = {
+            'trade_state': trade_state,
+            'redirect_url': receipt_url
+        }
 
         if trade_state == 'SUCCESS':
             transaction_id = payment["transaction_id"]
-            paymentRes, basket = self._get_basket(None, transaction_id)
+            res = self.handle_pay_success(request, responses, transaction_id, out_trade_no, trade_state)
+
+            # 下面代码用于测试
+            # paymentRes, basket = self._get_basket(None, transaction_id)
+            # if basket is not None:
+            #     res = {
+            #         'trade_state': trade_state,
+            #         'redirect_url': receipt_url
+            #     }
+            # else:
+            #     res = {
+            #         'trade_state': 'NOTPAY',
+            #         'redirect_url': receipt_url
+            #     }
+        return JsonResponse(res)
+
+    def handle_pay_success(self, request, responses, transaction_id, out_trade_no, trade_state):
+        process_result = True
+        has_paid = False
+        with transaction.atomic():
+            paymentRes, basket = self._get_basket(None, transaction_id, True)
             if basket is None:
-                paymentRes, basket = self._get_basket(out_trade_no, None)
+                paymentRes, basket = self._get_basket(out_trade_no, None, True)
             else:
                 has_paid = True
             receipt_url = get_receipt_page_url(
@@ -62,11 +109,11 @@ class WechatPaymentQueryView(EdxOrderPlacementMixin, APIView):
                     'redirect_url': receipt_url
                 }
             try:
-                with transaction.atomic():
-                    self.handle_payment(responses, basket)
+                self.handle_payment(responses, basket)
             except:  # pylint: disable=bare-except
                 logger.exception('Attempts to handle payment for basket [%d] failed.', basket.id)
                 # trade_state = 'ERROR'
+                process_result = False
 
             order = None
             try:
@@ -74,20 +121,23 @@ class WechatPaymentQueryView(EdxOrderPlacementMixin, APIView):
             except Exception:  # pylint: disable=broad-except
                 logger.exception('Attempts to create order for basket [%d] failed.', basket.id)
                 # trade_state = 'ERROR'
+                process_result = False
 
             try:
                 if order is not None:
                     self.handle_post_order(order)
             except Exception:  # pylint: disable=broad-except
                 self.log_order_placement_exception(basket.order_number, basket.id)
+                process_result = False
 
         res = {
             'trade_state': trade_state,
-            'redirect_url': receipt_url
+            'redirect_url': receipt_url,
+            'process_result': process_result
         }
-        return JsonResponse(res)
+        return res
 
-    def _get_basket(self, out_trade_no, transaction_id):
+    def _get_basket(self, out_trade_no, transaction_id, for_update=False):
         """
         Retrieve a basket using a payment ID.
 
@@ -100,13 +150,16 @@ class WechatPaymentQueryView(EdxOrderPlacementMixin, APIView):
 
         """
         try:
+            payObj = PaymentProcessorResponse.objects
+            if for_update:
+                payObj = payObj.select_for_update()
             if transaction_id is not None:
-                paymentRes = PaymentProcessorResponse.objects.get(
+                paymentRes = payObj.get(
                     processor_name=self.payment_processor.NAME,
                     transaction_id=transaction_id
                 )
             elif out_trade_no is not None:
-                paymentRes = PaymentProcessorResponse.objects.get(
+                paymentRes = payObj.get(
                     processor_name=self.payment_processor.NAME,
                     transaction_id=out_trade_no
                 )
