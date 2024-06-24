@@ -140,7 +140,7 @@ class WechatPay(BasePaymentProcessor):
 
         site_configuration = basket.site.siteconfiguration
         notify_url = site_configuration.build_ecommerce_url('/payment/wechatpay/query')
-        notify_url = 'http://gptdev.nps.wayfish.cn/payment/wechatpay/query/'
+        # notify_url = 'http://gptdev.nps.wayfish.cn/payment/wechatpay/query/'
 
         message = None
         for i in range(1, available_attempts + 1):
