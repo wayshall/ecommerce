@@ -60,7 +60,7 @@ class WechatPay(BasePaymentProcessor):
         #     notify_url=notify_url,
         #     pay_type="h5"
         # )
-        merchant_id = self.configuration['merchant_id']
+        merchant_id = str(self.configuration['merchant_id'])
         cert_dir = self.configuration['cert_dir']
         apiclient_key_path = self.configuration['apiclient_key']
         # 商户证书私钥，此文件不要放置在下面设置的CERT_DIR目录里。
