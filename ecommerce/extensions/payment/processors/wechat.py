@@ -6,17 +6,11 @@ import uuid
 from decimal import Decimal
 from urllib.parse import urljoin
 
-import paypalrestsdk
 import waffle
-from django.conf import settings
-from django.urls import reverse
 from django.utils.functional import cached_property
-from django.utils.translation import get_language
 from oscar.apps.payment.exceptions import GatewayError
 
 from ecommerce.core.url_utils import get_ecommerce_url
-from ecommerce.extensions.payment.constants import PAYPAL_LOCALES
-from ecommerce.extensions.payment.models import PaypalProcessorConfiguration, PaypalWebProfile
 from ecommerce.extensions.payment.processors import BasePaymentProcessor, HandledProcessorResponse
 from ecommerce.extensions.payment.utils import get_basket_program_uuid, middle_truncate
 # from .wechatpay_v3 import WeChatPayV3

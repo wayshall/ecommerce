@@ -3,7 +3,7 @@
 from django.conf import settings
 from django.conf.urls import include, url
 
-from ecommerce.extensions.payment.views import PaymentFailedView, cybersource, paypal, stripe, wechatpay
+from ecommerce.extensions.payment.views import PaymentFailedView, cybersource, paypal, stripe, wechatpay, alipay
 from ecommerce.extensions.payment.views.sdn import SDNCheckFailureView, SDNCheckView, SDNFailure
 
 CYBERSOURCE_APPLE_PAY_URLS = [
@@ -21,7 +21,11 @@ PAYPAL_URLS = [
 ]
 
 WECHATPAY_URLS = [
-    url(r'^query/$', wechatpay.WechatPaymentQueryView.as_view(), name='query'),
+    url(r'^query/$', wechatpay.WechatPaymentQueryView.as_view(), name='wechatpay_query'),
+]
+
+ALIPAY_URLS = [
+    url(r'^query/$', alipay.AliPaymentQueryView.as_view(), name='alipay_query'),
 ]
 
 SDN_URLS = [
@@ -42,6 +46,7 @@ urlpatterns = [
     url(r'^sdn/', include((SDN_URLS, 'sdn'))),
     url(r'^stripe/', include((STRIPE_URLS, 'stripe'))),
     url(r'^wechatpay/', include((WECHATPAY_URLS, 'wechatpay'))),
+    url(r'^alipay/', include((ALIPAY_URLS, 'alipay'))),
 ]
 
 for payment_processor_name, urls_module in settings.EXTRA_PAYMENT_PROCESSOR_URLS.items():
