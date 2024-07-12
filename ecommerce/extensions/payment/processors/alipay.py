@@ -52,7 +52,7 @@ class AliPayProcessor(BasePaymentProcessor):
         """
         """
         notify_url = urljoin(get_ecommerce_url(), '/payment/alipay/query/')
-        app_id = self.configuration['app_id']
+        app_id = str(self.configuration['app_id'])
         # 支付宝网页下载的证书不能直接被使用，需要加上头尾
         # 你可以在此处找到例子： tests/certs/ali/ali_private_key.pem
         # app_private_key_path = self.configuration['app_private_key']
