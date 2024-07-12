@@ -32,7 +32,10 @@ class AliPaymentQueryView(EdxOrderPlacementMixin, APIView):
         return AliPayProcessor(self.request.site)
 
     def post(self, request):
-        data = request.data.copy()
+        requestData = request.data
+        # 把requestData转换为新的dict，当requestData的列表值长度为1时，只获取第一个元素，否则保持原有的值
+        data = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in requestData.items()}
+
         logger.info("AliPay callback header: %s", request.headers)
         logger.info("AliPay callback data: %s", data)
         # sign 不能参与签名验证
@@ -163,17 +166,17 @@ class AliPaymentQueryView(EdxOrderPlacementMixin, APIView):
             if for_update:
                 payObj = payObj.select_for_update()
             if transaction_id is not None:
+                id = transaction_id
                 paymentRes = payObj.get(
                     processor_name=self.payment_processor.NAME,
                     transaction_id=transaction_id
                 )
-                id = transaction_id
             elif out_trade_no is not None:
+                id = out_trade_no
                 paymentRes = payObj.get(
                     processor_name=self.payment_processor.NAME,
                     transaction_id=out_trade_no
                 )
-                id = out_trade_no
             else:
                 return None, None
             basket = paymentRes.basket
@@ -183,8 +186,11 @@ class AliPaymentQueryView(EdxOrderPlacementMixin, APIView):
 
             basket_add_organization_attribute(basket, self.request.GET)
             return paymentRes, basket
+        except PaymentProcessorResponse.DoesNotExist:
+            logger.warning(u"payment ID [%s] DoesNotExist.", id)
+            return None, None
         except MultipleObjectsReturned:
-            logger.warning(u"Duplicate payment ID [%s] received from PayPal.", id)
+            logger.warning(u"Duplicate payment ID [%s] received.", id)
             return None, None
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(u"Unexpected error during basket retrieval while executing PayPal payment. %s", e)

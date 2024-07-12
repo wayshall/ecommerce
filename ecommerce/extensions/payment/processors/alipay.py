@@ -136,7 +136,7 @@ class AliPayProcessor(BasePaymentProcessor):
 
         site_configuration = basket.site.siteconfiguration
         notify_url = site_configuration.build_ecommerce_url('/payment/alipay/query/')
-        notify_url = 'http://gptdev.nps.wayfish.cn/payment/alipay/query/'
+        # notify_url = 'http://gptdev.nps.wayfish.cn/payment/alipay/query/'
 
         alipay = self.alipay_api
         order_string = alipay.api_alipay_trade_page_pay(
